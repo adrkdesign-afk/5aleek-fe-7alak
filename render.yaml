@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: 5aleek-fe-7alak
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: ADMIN_PASSWORD
+        value: medo3345
+      - key: NODE_ENV
+        value: production

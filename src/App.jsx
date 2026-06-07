@@ -15,6 +15,15 @@ import {
 
 const emptyAnswers = {};
 
+function getSessionId() {
+  const existing = localStorage.getItem("game-session-id");
+  if (existing) return existing;
+
+  const id = crypto.randomUUID();
+  localStorage.setItem("game-session-id", id);
+  return id;
+}
+
 function normalize(value) {
   return value
     .trim()
@@ -59,6 +68,7 @@ function GameScreen({ game }) {
   const [answers, setAnswers] = useState(emptyAnswers);
   const [feedback, setFeedback] = useState("");
   const [finished, setFinished] = useState(false);
+  const [sessionId] = useState(getSessionId);
 
   const level = game.levels[levelIndex];
   const progress = started ? Math.round(((levelIndex + (finished ? 1 : 0)) / game.levels.length) * 100) : 0;
@@ -74,9 +84,30 @@ function GameScreen({ game }) {
     }));
   }
 
+  useEffect(() => {
+    if (!started) return;
+
+    const timer = setTimeout(() => {
+      fetch("/api/drafts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          currentLevel: level?.label,
+          currentLevelId: level?.id,
+          answers,
+          updatedAt: new Date().toISOString()
+        })
+      }).catch(() => {});
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [answers, level?.id, level?.label, sessionId, started]);
+
   async function submitFinal() {
     const payload = {
       gameTitle: game.title,
+      sessionId,
       answers,
       completedAt: new Date().toISOString()
     };
@@ -238,6 +269,7 @@ function AdminPanel({ game, onClose, onSaved }) {
   const [password, setPassword] = useState("");
   const [token, setToken] = useState(localStorage.getItem("admin-token") || "");
   const [draft, setDraft] = useState(game);
+  const [liveDrafts, setLiveDrafts] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [message, setMessage] = useState("");
 
@@ -253,11 +285,22 @@ function AdminPanel({ game, onClose, onSaved }) {
     }
     const data = await response.json();
     setDraft(data.game);
+    setLiveDrafts(data.drafts || []);
     setSubmissions(data.submissions);
   }
 
   useEffect(() => {
     if (token) loadDashboard(token);
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return undefined;
+
+    const interval = setInterval(() => {
+      loadDashboard(token);
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, [token]);
 
   async function login(event) {
@@ -379,6 +422,18 @@ function AdminPanel({ game, onClose, onSaved }) {
             </div>
 
             <aside className="submissions-column">
+              <h3>الكتابة الحالية Live</h3>
+              {!liveDrafts.length && <p className="helper">لسه مفيش كتابة مباشرة.</p>}
+              {liveDrafts.map((item) => (
+                <article className="submission live" key={item.sessionId}>
+                  <div className="submission-top">
+                    <strong>{item.payload.currentLevel || "Playing"}</strong>
+                    <small>{new Date(item.updatedAt).toLocaleString("ar-EG")}</small>
+                  </div>
+                  <pre>{JSON.stringify(item.payload.answers, null, 2)}</pre>
+                </article>
+              ))}
+
               <h3>الإجابات اللي اتسلمت</h3>
               {!submissions.length && <p className="helper">لسه مفيش submissions.</p>}
               {submissions.map((submission) => (

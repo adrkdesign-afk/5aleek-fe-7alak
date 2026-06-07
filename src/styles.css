@@ -460,6 +460,11 @@ textarea {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.submission.live {
+  border-color: rgba(83, 242, 195, 0.42);
+  background: rgba(83, 242, 195, 0.1);
+}
+
 .level-editor h3,
 .submissions-column h3 {
   margin: 0 0 10px;

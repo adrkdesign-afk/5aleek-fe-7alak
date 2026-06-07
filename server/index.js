@@ -6,9 +6,11 @@ import {
   addSubmission,
   deleteSubmission,
   getDb,
+  getDrafts,
   getGame,
   getSubmissions,
-  setGame
+  setGame,
+  upsertDraft
 } from "./database.js";
 
 const envPath = path.join(process.cwd(), ".env");
@@ -45,6 +47,16 @@ app.post("/api/submissions", (req, res) => {
   res.json({ ok: true });
 });
 
+app.post("/api/drafts", (req, res) => {
+  const sessionId = String(req.body?.sessionId || "");
+  if (!sessionId) {
+    return res.status(400).json({ error: "sessionId مطلوب." });
+  }
+
+  upsertDraft(sessionId, req.body);
+  res.json({ ok: true });
+});
+
 app.post("/api/admin/login", (req, res) => {
   if (req.body?.password !== adminPassword) {
     return res.status(401).json({ error: "الباسورد غلط." });
@@ -58,6 +70,7 @@ app.post("/api/admin/login", (req, res) => {
 app.get("/api/admin/dashboard", requireAdmin, (req, res) => {
   res.json({
     game: getGame(),
+    drafts: getDrafts(),
     submissions: getSubmissions()
   });
 });

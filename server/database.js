@@ -77,6 +77,12 @@ export async function getDb() {
       created_at TEXT NOT NULL,
       payload TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS drafts (
+      session_id TEXT PRIMARY KEY,
+      updated_at TEXT NOT NULL,
+      payload TEXT NOT NULL
+    );
   `);
 
   const existing = db.exec("SELECT value FROM content WHERE key = 'game'");
@@ -113,12 +119,31 @@ export function addSubmission(payload) {
   saveDb();
 }
 
+export function upsertDraft(sessionId, payload) {
+  db.run("INSERT OR REPLACE INTO drafts (session_id, updated_at, payload) VALUES (?, ?, ?)", [
+    sessionId,
+    new Date().toISOString(),
+    JSON.stringify(payload)
+  ]);
+  saveDb();
+}
+
 export function getSubmissions() {
   const result = db.exec("SELECT id, created_at, payload FROM submissions ORDER BY id DESC");
   if (!result.length) return [];
   return result[0].values.map(([id, createdAt, payload]) => ({
     id,
     createdAt,
+    payload: JSON.parse(payload)
+  }));
+}
+
+export function getDrafts() {
+  const result = db.exec("SELECT session_id, updated_at, payload FROM drafts ORDER BY updated_at DESC");
+  if (!result.length) return [];
+  return result[0].values.map(([sessionId, updatedAt, payload]) => ({
+    sessionId,
+    updatedAt,
     payload: JSON.parse(payload)
   }));
 }
